@@ -1,5 +1,5 @@
 .idea/
 .DS_Store
 node_modules/
-example/node_modules/
+mock/node_modules/
 
