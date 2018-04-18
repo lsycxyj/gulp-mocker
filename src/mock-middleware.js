@@ -5,8 +5,12 @@ const decache = require('decache');
 const isStream = require('is-stream');
 const Mock = require('mockjs');
 const glob = require('glob');
+const mime = require('mime');
+const pathToRegexp = require('path-to-regexp');
 const log = require('fancy-log');
 const _ = require('lodash');
+const c2k = require('koa-connect');
+const proxyMiddleware = require('http-proxy-middleware');
 
 const {
     FALLBACK_MOCK,
@@ -18,12 +22,14 @@ const {
 
 const CWD = process.cwd();
 
-const { isFunction, isObject } = _;
+const { isFunction, isObject, isString } = _;
 
 // TODO some helpful utils, like image generator
-const utils = {
+const helpers = {
     Mock,
 };
+
+function noop() {}
 
 module.exports = function (opts) {
     const {
@@ -32,9 +38,30 @@ module.exports = function (opts) {
         mockExtOrder,
         mockPath,
         fallback,
+        proxies,
     } = opts;
 
     let configMap;
+    const logOnceMap = {};
+    const proxyMiddlewares = makeProxyMiddlewares();
+
+    function makeProxyMiddlewares() {
+        const ret = [];
+
+        for (const proxy of proxies) {
+            const { source, context, options } = proxy;
+            if (source && context && options) {
+                const item = {
+                    source,
+                    regex: source instanceof RegExp ? source : pathToRegexp(source),
+                    middleware: c2k(proxyMiddleware(context, options)),
+                };
+                ret.push(item);
+            }
+        }
+
+        return ret;
+    }
 
     function getMockRootAbsPath() {
         return path.resolve(mockPath);
@@ -99,138 +126,190 @@ module.exports = function (opts) {
         return ret;
     }
 
-    collectConfig();
+    async function doFilterConfig(ctx, resResult) {
+        const { req, res, path: reqPath } = ctx;
+        const { url: reqURL } = req;
+        let ret = resResult;
 
-    return async function (ctx, next) {
-        async function doFilterConfig(resResult) {
-            const { req, res } = ctx;
-            const { url: reqURL } = req;
-            let ret = resResult;
+        // Response directly if it's a stream
+        if (isStream(resResult)) {
+            // Do nothing
+            // ctx.body = resResult;
+        } else if (isObject(resResult)) {
+            const config = mergeConfig(reqPath);
+            const {
+                wrapper,
+                wrapperContentPlaceHolder = '{{!--WrapperContent--}}',
+                mockType
+            } = config;
 
-            // Response directly if it's a stream
-            if (!isStream(resResult)) {
-                // Do nothing
-                ctx.body = resResult;
-            } else if (isObject(resResult)) {
-                const config = mergeConfig(reqURL);
-                const {
-                    wrapper,
-                    wrapperContentPlaceHolder = '{{!--WrapperContent--}}',
-                    mockType
-                } = config;
+            switch (mockType) {
+                case MOCK_TYPE_NORMAL:
+                    // Do nothing
+                    break;
+                case MOCK_TYPE_MOCKJS:
+                    ret = Mock.mock(resResult);
+                    break;
+            }
 
-                switch (mockType) {
-                    case MOCK_TYPE_NORMAL:
-                        // Do nothing
-                        break;
-                    case MOCK_TYPE_MOCKJS:
-                        ret = Mock.mock(resResult);
-                        break;
-                }
-
-                if (isFunction(wrapper)) {
-                    ret = wrapper({ ctx, resResult, utils });
-                    if (isFunction(ret.then)) {
-                        try {
-                            ret = await ret;
-                        } catch (e) {
-                            log.error(`Wrapper process failed: ${reqURL}`);
-                            log.error(e);
-                            ret = null;
-                        }
-                    }
-                } else if (isObject(wrapper)) {
+            if (isFunction(wrapper)) {
+                ret = wrapper({ ctx, resResult, helpers });
+                if (isFunction(ret.then)) {
                     try {
-                        ret = JSON.parse(JSON.stringify(wrapper)
-                            .replace(wrapperContentPlaceHolder, JSON.stringify(resResult)));
+                        ret = await ret;
                     } catch (e) {
                         log.error(`Wrapper process failed: ${reqURL}`);
                         log.error(e);
                         ret = null;
                     }
                 }
-
-                if (ret) {
-                    ctx.body = ret;
+            } else if (isObject(wrapper)) {
+                try {
+                    ret = JSON.parse(JSON.stringify(wrapper)
+                        .replace(`"${wrapperContentPlaceHolder}"`, JSON.stringify(resResult)));
+                } catch (e) {
+                    log.error(`Wrapper process failed: ${reqURL}`);
+                    log.error(e);
+                    ret = null;
                 }
             }
-            return ret;
-        }
 
-        // TODO
-        function doFilterJSONP(resResult) {
-            const { req, res } = ctx;
-            let ret = resResult;
-
-            if (jsonpParamName) {
-                // Response directly if it's a stream
-                if (!isStream(resResult)) {
-                    // Do nothing
-                    ctx.body = resResult;
-                } else if (isObject(resResult)) {
-                    // TODO
-                }
+            if (ret) {
+                ctx.body = ret;
             }
-            return ret;
         }
+        return ret;
+    }
 
-        async function makeResponse(accessPath) {
-            const fileInfo = tryFile(accessPath);
-            let result = null;
-            if (fileInfo) {
-                const { filePath } = fileInfo;
-                const ext = path.extname(filePath);
+    function doFilterJSONP(ctx, resResult) {
+        const { query } = ctx;
+        let ret = resResult;
 
-                switch (ext) {
-                    case '.js':
-                    case '.json':
-                        result = require(filePath);
-                        // Never cache
-                        decache(filePath);
-                        break;
-                    default:
-                        result = fs.createReadStream(filePath);
-                        break;
-                }
+        if (jsonpParamName && query[jsonpParamName]) {
+            const jsonpFunctionName = query[jsonpParamName];
+            // Response directly if it's a stream
+            if (isStream(resResult)) {
+                // Do nothing
+                // ctx.body = resResult;
+            } else if (isObject(resResult)) {
+                ret = `${jsonpFunctionName}(${JSON.stringify(resResult)});`;
+                ctx.body = ret;
+                ctx.set('Content-Type', mime.getType('js'));
+            }
+        }
+        return ret;
+    }
 
-                if (isFunction(result)) {
-                    result = result({ ctx, utils });
-                    if (isFunction(result.then)) {
-                        try {
-                            result = await result;
-                        } catch (e) {
-                            log.error(`Request file process error: ${accessPath}`);
-                            log.error(e);
-                            // reset
-                            result = null;
-                        }
+    function doFilterDelay(ctx, resResult) {
+        return new Promise((resolve, reject) => {
+            const { path: reqPath } = ctx;
+            const config = mergeConfig(reqPath);
+            const { delay } = config;
+            if (delay <= 0) {
+                resolve(resResult);
+            } else {
+                setTimeout(() => {
+                    resolve(resResult);
+                }, delay);
+            }
+        });
+    }
+
+    async function makeResponse(ctx, accessPath) {
+        const fileInfo = tryFile(accessPath);
+        let result = null;
+        if (fileInfo) {
+            const { filePath } = fileInfo;
+            const ext = path.extname(filePath);
+            let contentType = '';
+
+            switch (ext) {
+                case '.js':
+                case '.json':
+                    result = require(filePath);
+                    // Never cache
+                    decache(filePath);
+                    if (isString(result)) {
+                        contentType = mime.getType('txt');
+                    } else if (isObject(result)) {
+                        contentType = mime.getType('json');
+                    }
+                    break;
+                default:
+                    result = fs.createReadStream(filePath);
+                    contentType = mime.getType(ext);
+                    break;
+            }
+
+            if (isFunction(result)) {
+                result = result({ ctx, helpers });
+                if (isFunction(result.then)) {
+                    try {
+                        result = await result;
+                    } catch (e) {
+                        log.error(`Request file process error: ${accessPath}`);
+                        log.error(e);
+                        // reset
+                        result = null;
                     }
                 }
-            } else {
-                log.error(`Request path dosen't exist: ${accessPath}`);
             }
-            return result;
+
+            if (result) {
+                ctx.body = result;
+
+                if (contentType) {
+                    ctx.set('Content-Type', contentType);
+                }
+            }
+        } else {
+            log.error(`Request path dosen't exist: ${accessPath}`);
         }
 
-        async function doResponse() {
-            const { req, res } = ctx;
-            const { url: reqURL } = req;
-            const accessPath = getAccessFilePath(reqURL);
-            let result = await makeResponse(accessPath);
-            result = await doFilterConfig(result);
-            result = doFilterJSONP(result);
+        return result;
+    }
+
+    async function doMockResponse(ctx) {
+        const { path: reqPath } = ctx;
+        const accessPath = getAccessFilePath(reqPath);
+        let result = await makeResponse(ctx, accessPath);
+        result = await doFilterConfig(ctx, result);
+        result = doFilterJSONP(ctx, result);
+        result = await doFilterDelay(ctx, result);
+        return result;
+    }
+
+    async function tryProxies(ctx) {
+        const { url: reqURL } = ctx;
+        for (const item of proxyMiddlewares) {
+            const { regex, middleware } = item;
+            if (regex.test(reqURL)) {
+                await middleware(ctx, noop);
+                break;
+            }
         }
+    }
 
-        await doResponse();
+    collectConfig();
 
+    return async function (ctx, next) {
         if (fallback) {
             log.info('Fallback enabled.');
             if (fallback === true || FALLBACK_PROXY) {
-                log.info('Any request will fallback to proxy server.');
+                await doMockResponse(ctx);
+                if (!ctx.body) {
+                    log.info('Request will fallback to proxy server.');
+                    await tryProxies(ctx);
+                }
             } else if (fallback === FALLBACK_MOCK) {
-                // TODO
-                log.info('Any request will fallback to mock server.');
+                await tryProxies(ctx);
+                if (!ctx.body) {
+                    log.info('Request will fallback to mock server.');
+                    await doMockResponse(ctx);
+                }
             }
+        } else {
+            await doMockResponse(ctx);
         }
     };
 };

@@ -47,4 +47,12 @@ module.exports = {
      * mockjs: Responses will be treated as the parameters of MockJS after the process of "normal"
      */
     mockType: 'normal',
+
+    /**
+     * Delay
+     * Default: 0
+     *
+     * Response delay emulation in millisecond.
+     */
+    delay: 0,
 };

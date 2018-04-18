@@ -1,8 +1,7 @@
 const through = require('through2');
 const chalk = require('chalk');
 const koa = require('koa');
-const c2k = require('koa-connect');
-const proxyMiddleware = require('http-proxy-middleware');
+const koaBodyParser = require('koa-bodyparser');
 const _ = require('lodash');
 const path = require('path');
 const http = require('http');
@@ -16,6 +15,10 @@ const DEFAULT_OPTS = {
     allowCrossOriginHeaders: ['Origin', 'X-Requested-With', 'Content-Type', 'Accept'],
     allowCrossOriginHost: '*',
     allowCrossOriginMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    bodyParserConfig: {
+        jsonLimit: '100mb',
+        formLimit: '100mb',
+    },
     fallback: false,
     host: 'localhost',
     jsonpParamName: 'callback',
@@ -34,6 +37,7 @@ function startServer(opts) {
 
     const {
         allowCrossOrigin,
+        bodyParserConfig,
         host,
         middlewares,
         port,
@@ -62,6 +66,7 @@ function startServer(opts) {
         app.use(allowCrossOriginMiddleware(opts));
     }
 
+    app.use(koaBodyParser(bodyParserConfig));
     app.use(mockMiddleware(opts));
 
     let webServer;
