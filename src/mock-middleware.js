@@ -19,15 +19,9 @@ const {
     MOCK_TYPE_NORMAL,
     MOCK_TYPE_MOCKJS,
 } = require('./const');
-
-const CWD = process.cwd();
+const helpers = require('./helpers');
 
 const { isFunction, isObject, isString } = _;
-
-// TODO some helpful utils, like image generator
-const helpers = {
-    Mock,
-};
 
 function noop() {}
 
@@ -42,7 +36,6 @@ module.exports = function (opts) {
     } = opts;
 
     let configMap;
-    const logOnceMap = {};
     const proxyMiddlewares = makeProxyMiddlewares();
 
     function makeProxyMiddlewares() {
