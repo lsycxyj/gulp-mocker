@@ -20,6 +20,7 @@ const DEFAULT_OPTS = {
         formLimit: '100mb',
     },
     fallback: false,
+    fallbackRules: ['emptyBody', 'status404', 'status500'],
     host: 'localhost',
     jsonpParamName: 'callback',
     middlewares: [],
@@ -49,9 +50,11 @@ function startServer(opts) {
         if (err) {
             log.error(err);
         } else {
-            log.info(`Mock Server started at ${chalk.cyan(`http://${host}:${port}`)}.`);
+            log.info(`Mock Server started at ${chalk.cyan(`http${useHTTPS ? 's' : ''}://${host}:${port}`)}.`);
         }
     }
+
+    app.use(koaBodyParser(bodyParserConfig));
 
     // middlewares
     if (_.isFunction(middlewares)) {
@@ -66,7 +69,6 @@ function startServer(opts) {
         app.use(allowCrossOriginMiddleware(opts));
     }
 
-    app.use(koaBodyParser(bodyParserConfig));
     app.use(mockMiddleware(opts));
 
     let webServer;
