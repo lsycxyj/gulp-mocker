@@ -10,13 +10,20 @@ gulp.task('mockExamples', function() {
 gulp.task('zip', function() {
     return gulp.src([
         'bin/**/*',
+        'bin/**/.*',
         'src/**/*',
+        'src/**/.*',
         'mock/**/*',
+        'mock/**/.*',
         'test/**/*',
+        'test/**/.*',
+        'ssl/**/*',
         '.editorconfig',
         '.gitignore',
         'gulpfile.js',
         'package.json',
+        'run.js',
+        'README.md',
     ], {
         base: '.',
     })

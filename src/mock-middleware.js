@@ -27,7 +27,7 @@ const { isFunction, isObject, isString, isArray } = _;
 function noop() {
 }
 
-module.exports = function (opts) {
+module.exports = function (opts, { watchers }) {
     const {
         jsonpParamName,
         mockConfigName,
@@ -36,6 +36,7 @@ module.exports = function (opts) {
         fallback,
         fallbackRules,
         proxies,
+        watchMockConfig,
     } = opts;
 
     let configMap;
@@ -44,6 +45,8 @@ module.exports = function (opts) {
         emptyBody({ ctx }) {
             return !ctx.body;
         },
+        status404: makeStatusRule(404),
+        status500: makeStatusRule(500),
     };
 
     function makeProxyMiddlewares() {
@@ -82,7 +85,6 @@ module.exports = function (opts) {
         return filePath;
     }
 
-    // TODO watch and recollect
     function collectConfig() {
         configMap = new Map();
 
@@ -98,7 +100,13 @@ module.exports = function (opts) {
                 p = path.relative(rootPath, p);
             }
 
-            configMap.set(p, require(filePath));
+            try {
+                configMap.set(p, require(filePath));
+                decache(filePath);
+            } catch (e) {
+                log.error(`Config file parsing error: ${filePath}. This config will be ignored.`);
+                log.error(e);
+            }
         }
     }
 
@@ -275,6 +283,8 @@ module.exports = function (opts) {
                                 }
                             }
                         }
+                    } else if (isObject(ret)) {
+                        result = ret;
                     }
                     break;
                 default:
@@ -319,8 +329,8 @@ module.exports = function (opts) {
     }
 
     function makeStatusRule(code) {
-        return function({ctx}) {
-            // TODO
+        return function ({ ctx }) {
+            return ctx.status === code;
         }
     }
 
@@ -349,6 +359,20 @@ module.exports = function (opts) {
 
     collectConfig();
 
+    // Watchers
+    if (watchMockConfig && isArray(watchers) && mockConfigName) {
+        log.info(`Watching mock config changes`);
+        watchers.push(fs.watch(path.resolve(mockPath), {
+            recursive: true,
+        }, function (eventType, filename) {
+            if (path.basename(filename) === mockConfigName) {
+                log.info(`Mock config ${filename} changed.`);
+                log.info(`Recollect config files.`);
+                collectConfig();
+            }
+        }))
+    }
+
     if (fallback) {
         log.info('Fallback enabled.');
         if (fallback === true || FALLBACK_PROXY) {
@@ -374,5 +398,6 @@ module.exports = function (opts) {
         } else {
             await doMockResponse(ctx);
         }
+        await next();
     };
 };
