@@ -148,51 +148,58 @@ module.exports = function (opts, { watchers }) {
         const { url: reqURL } = req;
         let ret = resResult;
 
-        // Response directly if it's a stream or a buffer
-        if (isStream(resResult) || isBuffer(resResult)) {
-            // Do nothing
-            // ctx.body = resResult;
-        } else if (isObject(resResult)) {
-            const config = mergeConfig(reqPath);
-            const {
-                wrapper,
-                wrapperContentPlaceHolder = '{{!--WrapperContent--}}',
-                mockType
-            } = config;
+        const config = mergeConfig(reqPath);
+        const {
+            wrapper,
+            wrapperContentPlaceHolder = '{{!--WrapperContent--}}',
+            mockType,
+            passThroughProxy,
+        } = config;
 
-            switch (mockType) {
-                case MOCK_TYPE_NORMAL:
-                    // Do nothing
-                    break;
-                case MOCK_TYPE_MOCKJS:
-                    ret = Mock.mock(resResult);
-                    break;
-            }
+        // Remove response and pass through
+        if (passThroughProxy === true) {
+            ret = null;
+            ctx.body = ret;
+        } else {
+            // Response directly if it's a stream or a buffer
+            if (isStream(resResult) || isBuffer(resResult)) {
+                // Do nothing
+                // ctx.body = resResult;
+            } else if (isObject(resResult)) {
+                switch (mockType) {
+                    case MOCK_TYPE_NORMAL:
+                        // Do nothing
+                        break;
+                    case MOCK_TYPE_MOCKJS:
+                        ret = Mock.mock(resResult);
+                        break;
+                }
 
-            if (isFunction(wrapper)) {
-                ret = wrapper({ ctx, resResult, helpers });
-                if (isFunction(ret.then)) {
+                if (isFunction(wrapper)) {
+                    ret = wrapper({ ctx, resResult, helpers });
+                    if (isFunction(ret.then)) {
+                        try {
+                            ret = await ret;
+                        } catch (e) {
+                            log.error(`Wrapper process failed: ${reqURL}`);
+                            log.error(e);
+                            ret = null;
+                        }
+                    }
+                } else if (isObject(wrapper)) {
                     try {
-                        ret = await ret;
+                        ret = JSON.parse(JSON.stringify(wrapper)
+                            .replace(`"${wrapperContentPlaceHolder}"`, JSON.stringify(resResult)));
                     } catch (e) {
                         log.error(`Wrapper process failed: ${reqURL}`);
                         log.error(e);
                         ret = null;
                     }
                 }
-            } else if (isObject(wrapper)) {
-                try {
-                    ret = JSON.parse(JSON.stringify(wrapper)
-                        .replace(`"${wrapperContentPlaceHolder}"`, JSON.stringify(resResult)));
-                } catch (e) {
-                    log.error(`Wrapper process failed: ${reqURL}`);
-                    log.error(e);
-                    ret = null;
-                }
-            }
 
-            if (ret) {
-                ctx.body = ret;
+                if (ret) {
+                    ctx.body = ret;
+                }
             }
         }
         return ret;
@@ -265,20 +272,23 @@ module.exports = function (opts, { watchers }) {
                          * @returns {Object}:
                          *      body {*}: The value will be set as the koa's body of ctx
                          *      contentType {String}: Optional. The value will be used as content type if it's set.
+                         *      passThroughProxy {Boolean}: Optional. Request will pass through the proxy directly. Only available when the fallback is proxy and the proxy is available.
                          */
                         if (ret) {
-                            const { body: retBody, contentType: retContentType } = ret;
+                            const { body: retBody, contentType: retContentType, passThroughProxy } = ret;
 
-                            if (retBody) {
-                                result = retBody;
+                            if (passThroughProxy !== true) {
+                                if (retBody) {
+                                    result = retBody;
 
-                                if (retContentType) {
-                                    contentType = retContentType;
-                                } else {
-                                    if (isString(result)) {
-                                        contentType = mime.getType('txt');
-                                    } else if (isObject(result)) {
-                                        contentType = mime.getType('json');
+                                    if (retContentType) {
+                                        contentType = retContentType;
+                                    } else {
+                                        if (isString(result)) {
+                                            contentType = mime.getType('txt');
+                                        } else if (isObject(result)) {
+                                            contentType = mime.getType('json');
+                                        }
                                     }
                                 }
                             }

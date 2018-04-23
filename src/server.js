@@ -14,17 +14,37 @@ const allowCrossOriginMiddleware = require('./allow-cross-origin-middleware');
 const { isFunction } = _;
 
 const DEFAULT_OPTS = {
+    // {Boolean}: Whether add Allow-Cross-Origin header in response
     allowCrossOrigin: false,
+    // {Array<String>|String}: Access-Control-Allow-Headers value
     allowCrossOriginHeaders: ['Origin', 'X-Requested-With', 'Content-Type', 'Accept'],
+    // {String}: Access-Control-Allow-Host value
     allowCrossOriginHost: '*',
+    // {Array<String>|String}: Access-Control-Allow-Methods
     allowCrossOriginMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    // {Object}: Config object for koa-bodyparser
     bodyParserConfig: {
         jsonLimit: '100mb',
         formLimit: '100mb',
     },
+    /*
+        {Boolean|String}: Whether use fallback. Available values:
+            false: Not use fallback
+            true|'proxy': Use fallback if the mock server fail to return response and fallback to proxy
+            'mock': Use fallback if the proxy fail to return response and fallback to mock server
+    */
     fallback: false,
+    /*
+        {Array<String|Function>}: What kinds of circumstances are considered as failure.
+        Available embedded rules:
+            'emptyBody': If ctx.body is empty
+            'status404': If the status code is 404
+            'status500': If the status code is 500
+    */
     fallbackRules: ['emptyBody', 'status404', 'status500'],
+    // {String}: Mock server host name
     host: 'localhost',
+    // {Boolean}: Whether use https
     httpsEnabled: false,
     httpsOptions: {
         key: fs.readFileSync(path.resolve(__dirname, '../ssl/ssl.key')),

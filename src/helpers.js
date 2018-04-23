@@ -30,7 +30,7 @@ async function genImageStream(opts = {}) {
 
 async function genImageResponse(opts = {}) {
     const { format } = opts;
-    const s = await genImageStream(opts)
+    const s = await genImageStream(opts);
 
     return {
         body: s,

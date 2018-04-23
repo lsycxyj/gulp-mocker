@@ -55,4 +55,12 @@ module.exports = {
      * Response delay emulation in millisecond.
      */
     delay: 0,
+
+    /**
+     * Pass through Proxy
+     * Default: false
+     *
+     * Any request will pass through the proxy directly. Only available when the fallback is proxy and the proxy is available.
+     */
+    passThroughProxy: false,
 };
