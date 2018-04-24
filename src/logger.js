@@ -34,7 +34,7 @@ const exportMod = {
 for (const l of levels) {
     if (isFunction(log[l])) {
         exportMod[l] = function () {
-            if (LEVEL_MAP[curLevel] >= LEVEL_MAP[l]) {
+            if (LEVEL_MAP[l] >= LEVEL_MAP[curLevel]) {
                 log[l].apply(log, arguments);
             }
         };

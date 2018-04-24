@@ -99,6 +99,7 @@ function startServer(opts) {
         host,
         httpsEnabled,
         httpsOptions,
+        logLevel,
         middlewares,
         onServerStart,
         port,
@@ -123,6 +124,9 @@ function startServer(opts) {
             watcher.close();
         }
     }
+
+    // log settings
+    log.setLevel(logLevel);
 
     // middlewares
     app.use(koaBodyParser(bodyParserConfig));
