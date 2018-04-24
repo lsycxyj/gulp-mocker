@@ -1,8 +1,12 @@
 {
   "name": "gulp-mocker",
-  "version": "0.1.0",
+  "version": "0.8.0",
   "description": "Gulp mock Server",
   "main": "src/index.js",
+  "scripts": {
+    "dev": "run.js",
+    "test": "mocha ./test/**/*.spec.js"
+  },
   "bin": {
     "mock": "./bin/index.js"
   },
@@ -36,6 +40,8 @@
   },
   "devDependencies": {
     "gulp": "^3.9.1",
-    "gulp-zip": "^4.1.0"
+    "gulp-zip": "^4.1.0",
+    "mocha": "^5.1.1",
+    "supertest": "^3.0.0"
   }
 }

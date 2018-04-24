@@ -7,11 +7,12 @@ const fs = require('fs');
 const path = require('path');
 const http = require('http');
 const https = require('https');
-const log = require('fancy-log');
+const log = require('./logger');
 const mockMiddleware = require('./mock-middleware');
 const allowCrossOriginMiddleware = require('./allow-cross-origin-middleware');
 
 const { isFunction } = _;
+const { LEVEL_INFO } = log;
 
 const DEFAULT_OPTS = {
     // {Boolean}: Whether add Allow-Cross-Origin header in response
@@ -28,36 +29,63 @@ const DEFAULT_OPTS = {
         formLimit: '100mb',
     },
     /*
-        {Boolean|String}: Whether use fallback. Available values:
-            false: Not use fallback
-            true|'proxy': Use fallback if the mock server fail to return response and fallback to proxy
-            'mock': Use fallback if the proxy fail to return response and fallback to mock server
-    */
+     *  {Boolean|String}: Whether use fallback. Available values:
+     *      false: Not use fallback
+     *      true|'proxy': Use fallback if the mock server fail to return response and fallback to proxy
+     *      'mock': Use fallback if the proxy fail to return response and fallback to mock server
+     */
     fallback: false,
     /*
-        {Array<String|Function>}: What kinds of circumstances are considered as failure.
-        Available embedded rules:
-            'emptyBody': If ctx.body is empty
-            'status404': If the status code is 404
-            'status500': If the status code is 500
-    */
+     *  {Array<String|Function>}: What kinds of circumstances are considered as failure.
+     *  Available embedded rules:
+     *      'emptyBody': If ctx.body is empty
+     *      'status404': If the status code is 404
+     *      'status500': If the status code is 500
+     */
     fallbackRules: ['emptyBody', 'status404', 'status500'],
     // {String}: Mock server host name
     host: 'localhost',
     // {Boolean}: Whether use https
     httpsEnabled: false,
+    // {Object}: https options for `https.createServer()`
     httpsOptions: {
         key: fs.readFileSync(path.resolve(__dirname, '../ssl/ssl.key')),
         cert: fs.readFileSync(path.resolve(__dirname, '../ssl/ssl.crt')),
     },
+    // {String}: Param name of JSONP
     jsonpParamName: 'callback',
+    /*
+     *  {String}: Logging level. Available values: 'none', 'error', 'warn', 'info'
+     *  The levels above are in order. Any levels after the specific level of logging will be ignored.
+     */
+    logLevel: LEVEL_INFO,
+    // {Array<Function>|Function}: Additional koa middlewares
     middlewares: [],
+    // {String}: Mock config file name
     mockConfigName: '_.config.js',
+    // {Array<String>}: Mock response will try to find files by the following order
     mockExtOrder: ['', '.json', '.js'],
+    // {String}: Mock responses files' root path
     mockPath: './mock',
+    // {Function}: Listener function when the web server starts
     onServerStart: null,
+    // {Number}: Port of server
     port: 10086,
+    /*
+     *  {Array<{
+     *      // Matching rule whether to use proxy or not, which can be parsed by path-to-regexp. Required.
+     *      source: RegExp|String,
+     *      // `context` param of http-proxy-middleware. Optional.
+     *      context?: String,
+     *      // `options` param of http-proxy-middleware. Optional.
+     *      options?: Object
+     *  }>}: Proxy settings for http-proxy-middleware
+     */
     proxies: [],
+    /*
+     *  {Boolean}: The mock server will scan all mock config files and cache them when the server starts.
+     *  It will try to recollect the config files if any of config files changes when it's set to `true`
+     */
     watchMockConfig: true,
 };
 
@@ -72,7 +100,6 @@ function startServer(opts) {
         httpsEnabled,
         httpsOptions,
         middlewares,
-        mockPath,
         onServerStart,
         port,
     } = opts;
