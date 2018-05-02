@@ -37,6 +37,7 @@ module.exports = function (opts, { watchers }) {
         fallbackRules,
         proxies,
         watchMockConfig,
+        rewrites,
     } = opts;
 
     let configMap;
@@ -143,6 +144,37 @@ module.exports = function (opts, { watchers }) {
         return ret;
     }
 
+    function doFilterRewrites(ctx) {
+        if (isArray(rewrites)) {
+            for (const rule of rewrites) {
+                const { url } = ctx;
+                const { from, to } = rule;
+
+                let reg = from;
+                const keys = [];
+
+                if (isString(from)) {
+                    reg = pathToRegexp(reg, keys);
+                }
+
+                const exec = reg.exec(url);
+
+                if (exec) {
+                    if (isString(to)) {
+                        ctx.url = to;
+                    } else if (isFunction(to)) {
+                        ctx.url = to({
+                            ctx,
+                            exec,
+                            keys,
+                        });
+                    }
+                    break;
+                }
+            }
+        }
+    }
+
     async function doFilterConfig(ctx, resResult) {
         const { req, res, path: reqPath } = ctx;
         const { url: reqURL } = req;
@@ -161,6 +193,9 @@ module.exports = function (opts, { watchers }) {
             ret = null;
             ctx.body = ret;
         } else {
+            let statusCode = null;
+            let contentType = null;
+
             // Response directly if it's a stream or a buffer
             if (isStream(resResult) || isBuffer(resResult)) {
                 // Do nothing
@@ -176,14 +211,42 @@ module.exports = function (opts, { watchers }) {
                 }
 
                 if (isFunction(wrapper)) {
-                    ret = wrapper({ ctx, resResult, helpers });
-                    if (isFunction(ret.then)) {
+                    /**
+                     * Dynamic wrapper
+                     * @returns {Object}:
+                     *      body {*}: The value will be set as the koa's body of ctx
+                     *      contentType {String}: Optional. The value will be used as content type if it's set.
+                     *      status {Number}: Optional. Response status code.
+                     */
+                    let retWrapper = wrapper({ ctx, resResult, helpers });
+                    if (isFunction(retWrapper.then)) {
                         try {
-                            ret = await ret;
+                            retWrapper = await retWrapper;
                         } catch (e) {
                             log.error(`Wrapper process failed: ${reqURL}`);
                             log.error(e);
-                            ret = null;
+                            retWrapper = null;
+                        }
+                    }
+
+                    if (retWrapper) {
+                        const { body: retBody, contentType: retContentType, status } = retWrapper;
+                        if (retBody) {
+                            ret = retBody;
+
+                            if (retContentType) {
+                                contentType = retContentType;
+                            } else {
+                                if (isString(ret)) {
+                                    contentType = mime.getType('txt');
+                                } else if (isObject(ret)) {
+                                    contentType = mime.getType('json');
+                                }
+                            }
+
+                            if (Number.isInteger(status)) {
+                                statusCode = status;
+                            }
                         }
                     }
                 } else if (isObject(wrapper)) {
@@ -199,6 +262,14 @@ module.exports = function (opts, { watchers }) {
 
                 if (ret) {
                     ctx.body = ret;
+
+                    if (contentType) {
+                        ctx.set('Content-Type', contentType);
+                    }
+
+                    if (statusCode !== null) {
+                        ctx.status = statusCode;
+                    }
                 }
             }
         }
@@ -255,9 +326,17 @@ module.exports = function (opts, { watchers }) {
                 switch (ext) {
                     case '.js':
                     case '.json':
-                        let ret = require(filePath);
-                        // Never cache
-                        decache(filePath);
+                        let ret = null;
+                        try {
+                            ret = require(filePath);
+                            // Never cache
+                            decache(filePath);
+                        } catch (e) {
+                            log.error(`Request file process error: ${accessPath}`);
+                            log.error(e);
+                            // reset
+                            ret = null;
+                        }
 
                         if (isFunction(ret)) {
                             ret = ret({ ctx, helpers });
@@ -333,6 +412,8 @@ module.exports = function (opts, { watchers }) {
     }
 
     async function doMockResponse(ctx) {
+        doFilterRewrites(ctx);
+
         const { path: reqPath } = ctx;
         const accessPath = getAccessFilePath(reqPath);
         let result = await makeResponse(ctx, accessPath);
@@ -342,15 +423,21 @@ module.exports = function (opts, { watchers }) {
         return result;
     }
 
-    async function tryProxies(ctx) {
-        const { url: reqURL } = ctx;
-        for (const item of proxyMiddlewares) {
-            const { regex, middleware } = item;
-            if (regex.test(reqURL)) {
-                await middleware(ctx, noop);
-                break;
+    function tryProxies(ctx) {
+        return new Promise((resolve, reject) => {
+            const { url: reqURL, res } = ctx;
+            for (const item of proxyMiddlewares) {
+                const { regex, middleware } = item;
+                if (regex.test(reqURL)) {
+                    res.end = function () {
+                        resolve(ctx);
+                    };
+                    middleware(ctx, noop)
+                        .catch(reject);
+                    break;
+                }
             }
-        }
+        });
     }
 
     function makeStatusRule(code) {
@@ -370,6 +457,7 @@ module.exports = function (opts, { watchers }) {
                     if (isFunction(fn)) {
                         ret = fn({ ctx });
                     } else {
+                        /* istanbul ignore next */
                         log.error(`Fallback rule "${rule}" not found.`);
                     }
                 }
@@ -400,25 +488,26 @@ module.exports = function (opts, { watchers }) {
 
     if (fallback) {
         log.info('Fallback enabled.');
-        if (fallback === true || FALLBACK_PROXY) {
+        if (fallback === true || fallback === FALLBACK_PROXY) {
             log.info('Request will fallback to proxy server.');
         } else if (fallback === FALLBACK_MOCK) {
-            log.info('Request will fallback to mock server.');
+            // log.info('Request will fallback to mock server.');
         }
     }
 
     return async function (ctx, next) {
         if (fallback) {
-            if (fallback === true || FALLBACK_PROXY) {
+            if (fallback === true || fallback === FALLBACK_PROXY) {
                 await doMockResponse(ctx);
                 if (isMatchFallbackRules(ctx)) {
                     await tryProxies(ctx);
                 }
             } else if (fallback === FALLBACK_MOCK) {
-                await tryProxies(ctx);
-                if (isMatchFallbackRules(ctx)) {
-                    await doMockResponse(ctx);
-                }
+                // TODO http proxy middleware will end response and there's no way to wait for it
+                // await tryProxies(ctx);
+                // if (isMatchFallbackRules(ctx)) {
+                //     await doMockResponse(ctx);
+                // }
             }
         } else {
             await doMockResponse(ctx);

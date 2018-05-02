@@ -32,7 +32,6 @@ const DEFAULT_OPTS = {
      *  {Boolean|String}: Whether use fallback. Available values:
      *      false: Not use fallback
      *      true|'proxy': Use fallback if the mock server fail to return response and fallback to proxy
-     *      'mock': Use fallback if the proxy fail to return response and fallback to mock server
      */
     fallback: false,
     /*
@@ -41,6 +40,11 @@ const DEFAULT_OPTS = {
      *      'emptyBody': If ctx.body is empty
      *      'status404': If the status code is 404
      *      'status500': If the status code is 500
+     *  If it's a function, the signature should be like this:
+     *      function: boolean ({
+     *         // `ctx` of koa.
+     *         ctx: Object,
+     *      })
      */
     fallbackRules: ['emptyBody', 'status404', 'status500'],
     // {String}: Mock server host name
@@ -73,7 +77,7 @@ const DEFAULT_OPTS = {
     port: 10086,
     /*
      *  {Array<{
-     *      // Matching rule whether to use proxy or not, which can be parsed by path-to-regexp. Required.
+     *      // Matching rule whether to use proxy or not, which can be parsed by path-to-regexp if it's a string. Required.
      *      source: RegExp|String,
      *      // `context` param of http-proxy-middleware. Optional.
      *      context?: String,
@@ -87,6 +91,25 @@ const DEFAULT_OPTS = {
      *  It will try to recollect the config files if any of config files changes when it's set to `true`
      */
     watchMockConfig: true,
+    /*
+     *  {Array<{
+     *      // Matching rule whether to rewrite the request, which can be parsed by path-to-regexp if it's a string
+     *      from: RegExp|String,
+     *      // Where the request should be rewritten to:
+     *      //      If it's a string, the request path will be replaced by it.
+     *      //      If it's a function, the request path will be replaced by the return result of it. The signature should be like this:
+     *      //          function: string (result: {
+     *      //              // `ctx` of koa.
+     *      //              ctx: Object,
+     *      //              // `exec` result of RegExp object .
+     *      //              exec: Array,
+     *      //              // Keys from path-to-regexp. Available when `from` is a string.
+     *      //              keys: Array,
+     *      //          })
+     *      to: String|Function
+     *  }>}
+     */
+    rewrites: [],
 };
 
 function startServer(opts) {

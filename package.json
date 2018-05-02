@@ -5,7 +5,8 @@
   "main": "src/index.js",
   "scripts": {
     "dev": "run.js",
-    "test": "mocha ./test/**/*.spec.js"
+    "test": "nyc --reporter=html --reporter=text mocha ./test/**/*.spec.js",
+    "coverage": "nyc report --reporter=text-lcov | coveralls"
   },
   "bin": {
     "mock": "./bin/index.js"
@@ -39,9 +40,12 @@
     "through2": "^2.0.3"
   },
   "devDependencies": {
+    "chai": "^4.1.2",
+    "coveralls": "^3.0.1",
     "gulp": "^3.9.1",
     "gulp-zip": "^4.1.0",
     "mocha": "^5.1.1",
+    "nyc": "^11.7.1",
     "supertest": "^3.0.0"
   }
 }

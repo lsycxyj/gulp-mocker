@@ -12,6 +12,12 @@ mod.startServer({
             },
         },
     ],
+    rewrites: [
+        {
+            from: '/rewrite/(.*)',
+            to: '/path/to/api/static_data',
+        },
+    ],
     // useHTTPS: true,
     fallback: true,
 });

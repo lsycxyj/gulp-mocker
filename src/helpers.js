@@ -15,6 +15,22 @@ function hyperquestFolloRedirect(uri, options, cb) {
     });
 }
 
+/**
+ * Generate a stream of image
+ * @param opts: {
+ *          // Size of image by pixel. Format: `${width}x${height}`
+ *          size: string,
+ *          // Background color of image
+ *          background: string,
+ *          // Foreground color of text
+ *          foreground: string,
+ *          // Format of image. Available values: png, jpg, gif
+ *          format: string,
+ *          // Foreground text content
+ *          text: string,
+ *      }
+ * @returns {Promise.<stream>} The stream of image
+ */
 async function genImageStream(opts = {}) {
     const { size, background, foreground, format, text } = opts;
     return await new Promise((resolve, reject) => {
@@ -28,6 +44,11 @@ async function genImageStream(opts = {}) {
     });
 }
 
+/**
+ * Generate a image response
+ * @param opts {Object}: The same as genImageStream
+ * @returns {Promise.<Object>} The response for dynamic response
+ */
 async function genImageResponse(opts = {}) {
     const { format } = opts;
     const s = await genImageStream(opts);
@@ -39,9 +60,14 @@ async function genImageResponse(opts = {}) {
     };
 }
 
+/**
+ * Merge query, post body, parameters from request
+ * @param ctx: `ctx` of koa
+ * @returns {Object}
+ */
 function mergeParams(ctx) {
-    const { query, body, params } = ctx;
-    return Object.assign({}, query, body, params);
+    const { query, body } = ctx;
+    return Object.assign({}, query, body);
 }
 
 module.exports = {
