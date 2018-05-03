@@ -27,7 +27,13 @@ const { isFunction, isObject, isString, isArray } = _;
 function noop() {
 }
 
-module.exports = function (opts, { watchers }) {
+const _exposed = {};
+// Expose only when it's testing
+if (process.env.NODE_ENV === 'test') {
+    global.__test__mock__middleware__ = _exposed;
+}
+
+function mockMiddleware(opts, { watchers }) {
     const {
         jsonpParamName,
         mockConfigName,
@@ -423,21 +429,15 @@ module.exports = function (opts, { watchers }) {
         return result;
     }
 
-    function tryProxies(ctx) {
-        return new Promise((resolve, reject) => {
-            const { url: reqURL, res } = ctx;
-            for (const item of proxyMiddlewares) {
-                const { regex, middleware } = item;
-                if (regex.test(reqURL)) {
-                    res.end = function () {
-                        resolve(ctx);
-                    };
-                    middleware(ctx, noop)
-                        .catch(reject);
-                    break;
-                }
+    async function tryProxies(ctx) {
+        const { url: reqURL } = ctx;
+        for (const item of proxyMiddlewares) {
+            const { regex, middleware } = item;
+            if (regex.test(reqURL)) {
+                await middleware(ctx, noop);
+                break;
             }
-        });
+        }
     }
 
     function makeStatusRule(code) {
@@ -475,14 +475,21 @@ module.exports = function (opts, { watchers }) {
     // Watchers
     if (watchMockConfig && isArray(watchers) && mockConfigName) {
         log.info(`Watching mock config changes`);
-        watchers.push(fs.watch(path.resolve(mockPath), {
-            recursive: true,
-        }, function (eventType, filename) {
+
+        function onMockConfigFileChange (eventType, filename) {
             if (path.basename(filename) === mockConfigName) {
                 log.info(`Mock config ${filename} changed.`);
                 log.info(`Recollect config files.`);
                 collectConfig();
             }
+        }
+
+        _exposed.onMockConfigFileChange = onMockConfigFileChange;
+
+        watchers.push(fs.watch(path.resolve(mockPath), {
+            recursive: true,
+        }, function() {
+            _exposed.onMockConfigFileChange.apply(this, arguments);
         }))
     }
 
@@ -514,4 +521,6 @@ module.exports = function (opts, { watchers }) {
         }
         await next();
     };
-};
+}
+
+module.exports = mockMiddleware;

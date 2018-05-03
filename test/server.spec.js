@@ -1,10 +1,21 @@
 const path = require('path');
+const fs = require('fs');
 const supertest = require('supertest');
 const chai = require('chai');
+const chaiSpies = require('chai-spies');
+const Vinyl = require('vinyl');
+const request = require('request');
+// const MemoryFileSystem = require('memory-fs');
 
-const { expect, assert } = chai;
+process.env.NODE_ENV = 'test';
+
+chai.use(chaiSpies);
+
+const { expect, assert, spy } = chai;
 
 const mod = require('../src/server');
+
+const mockMiddlewareExposed = global.__test__mock__middleware__;
 
 function finishCase(done, beforeDone) {
     return function (err) {
@@ -208,6 +219,29 @@ describe('gulp-mocker', function () {
 
             server = ret.webServer;
         });
+
+        it(`watch mock config file change`, function (done) {
+            this.timeout(10 * 1000);
+            const ret = mod.startServer(Object.assign({}, baseOpts, {
+                onServerStart() {
+                    const spied = spy(mockMiddlewareExposed.onMockConfigFileChange);
+                    mockMiddlewareExposed.onMockConfigFileChange = spied;
+                    const configFilePath = path.join(__dirname, 'mock/with_config/__.config.js');
+                    const originalContent = fs.readFileSync(configFilePath, 'utf-8');
+                    fs.writeFileSync(configFilePath, originalContent.replace('{{!--Content--}}', '{{!--ContentTest--}}'));
+
+                    setTimeout(function () {
+                        // restore
+                        fs.writeFileSync(configFilePath, originalContent);
+
+                        expect(spied).to.be.called();
+                        done();
+                    }, 3 * 1000);
+                },
+            }));
+
+            server = ret.webServer;
+        });
     });
 
     describe('Without config files', function () {
@@ -242,6 +276,36 @@ describe('gulp-mocker', function () {
                         .get(`/static_data`)
                         .expect(200, staticDataNoConfigJSON)
                         .end(finishCase(done));
+                },
+            }));
+
+            server = ret.webServer;
+        });
+
+        it(`mock POST /static_data => static_data.json`, function (done) {
+            const ret = mod.startServer(Object.assign({}, baseOpts, {
+                onServerStart() {
+                    const b = Buffer.alloc(10 * 1024 * 1024, 'a');
+                    request.post({
+                        url: `${baseURL}/static_data`,
+                        formData: {
+                            target: 'test_upload',
+                            // file: fs.createReadStream(__dirname + '/server.spec.js'),
+                            // Some big file
+                            file: {
+                                value: b,
+                                options: {
+                                    filename: 'test.txt',
+                                    contentType: 'text/plain',
+                                },
+                            },
+                        },
+                    }, function (err, res, body) {
+                        // console.log(err)
+                        // console.log(res)
+                        done()
+                    });
+                    // s.end();
                 },
             }));
 
@@ -333,12 +397,26 @@ describe('gulp-mocker', function () {
         });
 
         it(`mock /image.png => image.png.js`, function (done) {
+            this.timeout(10 * 1000);
             const ret = mod.startServer(Object.assign({}, baseOpts, {
                 onServerStart() {
                     supertest(baseURL)
                         .get(`/image.png?size=200x200&format=png`)
                         .expect(200)
-                        // TODO
+                        // TODO size validation etc.
+                        .end(finishCase(done));
+                },
+            }));
+
+            server = ret.webServer;
+        });
+
+        it(`mock /static_image.png => static_image.png`, function (done) {
+            const ret = mod.startServer(Object.assign({}, baseOpts, {
+                onServerStart() {
+                    supertest(baseURL)
+                        .get(`/static_image.png`)
+                        .expect(200)
                         .end(finishCase(done));
                 },
             }));
@@ -501,6 +579,36 @@ describe('gulp-mocker', function () {
                 },
             }));
             server = ret.webServer;
+        });
+
+        it(`mock with gulp /static_data => static_data.json`, function (done) {
+            const fileContent = 'content';
+            const fakeFile = new Vinyl({
+                contents: new Buffer(fileContent),
+            });
+
+            const stream = mod.startGulpServer(Object.assign({}, baseOpts, {
+                onServerStart() {
+                    supertest(baseURL)
+                        .get(`/static_data`)
+                        .expect(200, staticDataNoConfigJSON)
+                        .end(function (err) {
+                            expect(err).to.not.exist;
+
+                            stream.write(fakeFile);
+
+                            stream.once('data', function (file) {
+                                assert(file.isBuffer());
+
+                                assert.equal(file.contents.toString('utf8'), fileContent);
+
+                                stream.emit('kill');
+
+                                done();
+                            })
+                        });
+                },
+            }));
         });
     });
 });

@@ -2,6 +2,7 @@ const through = require('through2');
 const chalk = require('chalk');
 const koa = require('koa');
 const koaBodyParser = require('koa-bodyparser');
+const koaBusBoy = require('koa-busboy');
 const _ = require('lodash');
 const fs = require('fs');
 const path = require('path');
@@ -28,6 +29,8 @@ const DEFAULT_OPTS = {
         jsonLimit: '100mb',
         formLimit: '100mb',
     },
+    // {Object}: Config object for koa-busboy
+    busboyConfig: {},
     /*
      *  {Boolean|String}: Whether use fallback. Available values:
      *      false: Not use fallback
@@ -119,6 +122,7 @@ function startServer(opts) {
     const {
         allowCrossOrigin,
         bodyParserConfig,
+        busboyConfig,
         host,
         httpsEnabled,
         httpsOptions,
@@ -152,6 +156,7 @@ function startServer(opts) {
     log.setLevel(logLevel);
 
     // middlewares
+    app.use(koaBusBoy(busboyConfig));
     app.use(koaBodyParser(bodyParserConfig));
 
     if (_.isFunction(middlewares)) {

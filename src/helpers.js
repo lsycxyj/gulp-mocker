@@ -66,8 +66,8 @@ async function genImageResponse(opts = {}) {
  * @returns {Object}
  */
 function mergeParams(ctx) {
-    const { query, body } = ctx;
-    return Object.assign({}, query, body);
+    const { query, request } = ctx;
+    return Object.assign({}, query, request.body);
 }
 
 module.exports = {
