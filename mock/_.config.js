@@ -23,10 +23,10 @@ module.exports = {
      *      ctx {Object}: context of koa
      *      resResult {Object}: mock response content
      *      helpers: {
-     *          // `mime` from npm
+     *          // `mime` from npm: https://www.npmjs.com/package/mime
      *          mime,
      *
-     *          // `mockjs` from npm
+     *          // `mockjs` from npm: https://www.npmjs.com/package/mockjs
      *          Mock,
      *
      *          // Generate a stream of image
