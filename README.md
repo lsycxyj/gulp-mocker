@@ -43,6 +43,16 @@ LGPL-V3
 }
 ```
 
+#### With Gulp
+```javascript
+const gulpMocker = require('gulp-mocker');
+gulp.src('whatever')
+    .pipe(gulpMocker({
+        // Put options here
+    }))
+    .pipe(// Nothing changed, do whatever you want)
+```
+
 #### Run it with command line
 ```sh
 $ npm install -g gulp-mocker
@@ -71,7 +81,7 @@ const { webServer, app } = mod.startServer({
 ## Examples
 > See "mock" folder
 
-## Config
+## Options
 ```javascript
 const DEFAULT_OPTS = {
     // {Boolean}: Whether add Allow-Cross-Origin header in response

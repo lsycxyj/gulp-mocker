@@ -22,6 +22,9 @@
     "server",
     "mock-server"
   ],
+  "author": "Light Leung <lsycxyj@gmail.com>",
+  "license": "LGPLv3",
+  "homepage": "https://github.com/lsycxyj/gulp-mocker",
   "dependencies": {
     "chalk": "^2.3.2",
     "commander": "^2.15.1",
