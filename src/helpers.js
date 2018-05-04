@@ -35,11 +35,11 @@ async function genImageStream(opts = {}) {
     const { size, background, foreground, format, text } = opts;
     return await new Promise((resolve, reject) => {
         hyperquestFolloRedirect(Random.image(size, background, foreground, format, text), {}, (err, res, stream) => {
-           if (err) {
-               reject(err);
-           } else {
-               resolve(stream);
-           }
+            if (err) {
+                reject(err);
+            } else {
+                resolve(stream);
+            }
         });
     });
 }
@@ -70,6 +70,42 @@ function mergeParams(ctx) {
     return Object.assign({}, query, request.body);
 }
 
+/**
+ * Helpers
+ * It's a group of tools that help you to make dynamic responses. It has the following properties:
+ *
+ *    // `mime` from npm: https://www.npmjs.com/package/mime
+ *    mime,
+ *
+ *    // `mockjs` from npm: https://www.npmjs.com/package/mockjs
+ *    Mock,
+ *
+ *    // Generate a stream of image
+ *    // @param opts: {
+ *    //          // Size of image by pixel. Format: `${width}x${height}`
+ *    //          size: string,
+ *    //          // Background color of image
+ *    //          background: string,
+ *    //          // Foreground color of text
+ *    //          foreground: string,
+ *    //          // Format of image. Available values: png, jpg, gif
+ *    //          format: string,
+ *    //          // Foreground text content
+ *    //          text: string,
+ *    //      }
+ *    // @returns {Promise.<stream>} The stream of image
+ *    genImageStream: function,
+ *
+ *    // Generate a image response
+ *    // @param opts {Object}: The same as genImageStream
+ *    // @returns {Promise.<Object>} The response for dynamic response
+ *    genImageResponse: function,
+ *
+ *    // Merge query, post body, parameters from request
+ *    // @param ctx: `ctx` of koa
+ *    // @returns {Object}
+ *    mergeParams: function,
+ */
 module.exports = {
     mime,
     Mock,

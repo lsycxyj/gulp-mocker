@@ -9,21 +9,23 @@ gulp.task('mockExamples', function() {
 
 gulp.task('zip', function() {
     return gulp.src([
+        '.editorconfig',
+        '.eslintrc.js',
+        '.gitignore',
+        'LICENSE',
+        'README.md',
         'bin/**/*',
         'bin/**/.*',
-        'src/**/*',
-        'src/**/.*',
+        'gulpfile.js',
         'mock/**/*',
         'mock/**/.*',
-        'test/**/*',
-        'test/**/.*',
-        'ssl/**/*',
-        '.editorconfig',
-        '.gitignore',
-        'gulpfile.js',
         'package.json',
         'run.js',
-        'README.md',
+        'src/**/*',
+        'src/**/.*',
+        'ssl/**/*',
+        'test/**/*',
+        'test/**/.*',
     ], {
         base: '.',
     })

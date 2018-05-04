@@ -6,7 +6,12 @@
   "scripts": {
     "dev": "run.js",
     "test": "nyc --reporter=html --reporter=text mocha ./test/**/*.spec.js",
-    "coverage": "nyc report --reporter=text-lcov | coveralls"
+    "coverage": "nyc report --reporter=text-lcov | coveralls",
+    "lint": "eslint src/**/*.js bin/**/*.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/lsycxyj/gulp-mocker.git"
   },
   "bin": {
     "gulp-mocker": "./bin/index.js"
@@ -46,6 +51,9 @@
     "chai-spies": "^1.0.0",
     "coveralls": "^3.0.1",
     "cross-env": "^5.1.4",
+    "eslint": "^4.19.1",
+    "eslint-config-nodejs": "^2.0.0",
+    "eslint-plugin-import": "^2.11.0",
     "event-stream": "^3.3.4",
     "gulp": "^3.9.1",
     "gulp-zip": "^4.1.0",

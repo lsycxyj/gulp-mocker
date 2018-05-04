@@ -247,7 +247,9 @@ describe('gulp-mocker', function () {
     describe('Without config files', function () {
         const host = 'localhost';
         const port = 10086;
-        const baseURL = `http://${host}:${port}`;
+        const baseURL = `${host}:${port}`;
+        const baseURLHTTP = `http://${baseURL}`;
+        const baseURLHTTPS = `https://${baseURL}`;
 
         const staticDataNoConfigJSON = require('./mock/no_config/static_data.json');
         const proxyDataJSON = require('./mock/another/another/path/to/data.json');
@@ -272,7 +274,21 @@ describe('gulp-mocker', function () {
         it(`mock /static_data => static_data.json`, function (done) {
             const ret = mod.startServer(Object.assign({}, baseOpts, {
                 onServerStart() {
-                    supertest(baseURL)
+                    supertest(baseURLHTTP)
+                        .get(`/static_data`)
+                        .expect(200, staticDataNoConfigJSON)
+                        .end(finishCase(done));
+                },
+            }));
+
+            server = ret.webServer;
+        });
+
+        it(`mock https /static_data => static_data.json`, function (done) {
+            const ret = mod.startServer(Object.assign({}, baseOpts, {
+                useHTTPS: true,
+                onServerStart() {
+                    supertest(baseURLHTTP)
                         .get(`/static_data`)
                         .expect(200, staticDataNoConfigJSON)
                         .end(finishCase(done));
@@ -287,7 +303,7 @@ describe('gulp-mocker', function () {
                 onServerStart() {
                     const b = Buffer.alloc(10 * 1024 * 1024, 'a');
                     request.post({
-                        url: `${baseURL}/static_data`,
+                        url: `${baseURLHTTP}/static_data`,
                         formData: {
                             target: 'test_upload',
                             // file: fs.createReadStream(__dirname + '/server.spec.js'),
@@ -316,7 +332,7 @@ describe('gulp-mocker', function () {
             const ret = mod.startServer(Object.assign({}, baseOpts, {
                 mockExtOrder: ['.js', '.json'],
                 onServerStart() {
-                    supertest(baseURL)
+                    supertest(baseURLHTTP)
                         .get(`/static_data`)
                         .expect(200, require('./mock/no_config/static_data'))
                         .end(finishCase(done));
@@ -332,10 +348,10 @@ describe('gulp-mocker', function () {
             const ret = mod.startServer(Object.assign({}, baseOpts, {
                 allowCrossOrigin: true,
                 allowCrossOriginHeaders,
-                allowCrossOriginHost: baseURL,
+                allowCrossOriginHost: baseURLHTTP,
                 allowCrossOriginMethods,
                 onServerStart() {
-                    supertest(baseURL)
+                    supertest(baseURLHTTP)
                         .get(`/static_data`)
                         .expect(200)
                         .end(function (err, res) {
@@ -345,7 +361,7 @@ describe('gulp-mocker', function () {
                                 expect(res).to.own.property('header');
                                 const { header } = res;
                                 expect(header['access-control-allow-headers']).to.be.equal(allowCrossOriginHeaders.join(','));
-                                expect(header['access-control-allow-origin']).to.be.equal(baseURL);
+                                expect(header['access-control-allow-origin']).to.be.equal(baseURLHTTP);
                                 expect(header['access-control-allow-methods']).to.be.equal(allowCrossOriginMethods.join(','));
                                 done();
                             }
@@ -360,7 +376,7 @@ describe('gulp-mocker', function () {
             const ret = mod.startServer(Object.assign({}, baseOpts, {
                 jsonpParamName: 'jsonp',
                 onServerStart() {
-                    supertest(baseURL)
+                    supertest(baseURLHTTP)
                         .get(`/static_data?jsonp=test`)
                         .expect(200, `test(${JSON.stringify(staticDataNoConfigJSON)});`)
                         .end(finishCase(done));
@@ -373,7 +389,7 @@ describe('gulp-mocker', function () {
         it(`mock /dynamic_data => dynamic_data.js`, function (done) {
             const ret = mod.startServer(Object.assign({}, baseOpts, {
                 onServerStart() {
-                    supertest(baseURL)
+                    supertest(baseURLHTTP)
                         .get(`/dynamic_data`)
                         .expect(200, staticDataNoConfigJSON)
                         .end(finishCase(done));
@@ -386,7 +402,7 @@ describe('gulp-mocker', function () {
         it(`mock /async_dynamic_data => async_dynamic_data.js`, function (done) {
             const ret = mod.startServer(Object.assign({}, baseOpts, {
                 onServerStart() {
-                    supertest(baseURL)
+                    supertest(baseURLHTTP)
                         .get(`/async_dynamic_data`)
                         .expect(200, staticDataNoConfigJSON)
                         .end(finishCase(done));
@@ -400,7 +416,7 @@ describe('gulp-mocker', function () {
             this.timeout(10 * 1000);
             const ret = mod.startServer(Object.assign({}, baseOpts, {
                 onServerStart() {
-                    supertest(baseURL)
+                    supertest(baseURLHTTP)
                         .get(`/image.png?size=200x200&format=png`)
                         .expect(200)
                         // TODO size validation etc.
@@ -414,7 +430,7 @@ describe('gulp-mocker', function () {
         it(`mock /static_image.png => static_image.png`, function (done) {
             const ret = mod.startServer(Object.assign({}, baseOpts, {
                 onServerStart() {
-                    supertest(baseURL)
+                    supertest(baseURLHTTP)
                         .get(`/static_image.png`)
                         .expect(200)
                         .end(finishCase(done));
@@ -427,7 +443,7 @@ describe('gulp-mocker', function () {
         it(`mock /async_dynamic_error_data => async_dynamic_error_data.js`, function (done) {
             const ret = mod.startServer(Object.assign({}, baseOpts, {
                 onServerStart() {
-                    supertest(baseURL)
+                    supertest(baseURLHTTP)
                         .get(`/async_dynamic_error_data`)
                         .expect(404)
                         .end(finishCase(done));
@@ -440,7 +456,7 @@ describe('gulp-mocker', function () {
         it(`mock /dynamic_data_403 => dynamic_data_403.js`, function (done) {
             const ret = mod.startServer(Object.assign({}, baseOpts, {
                 onServerStart() {
-                    supertest(baseURL)
+                    supertest(baseURLHTTP)
                         .get(`/dynamic_data_403`)
                         .expect(403, staticDataNoConfigJSON)
                         .end(finishCase(done));
@@ -453,7 +469,7 @@ describe('gulp-mocker', function () {
         it(`mock /error_syntax_data => error_syntax_data.js`, function (done) {
             const ret = mod.startServer(Object.assign({}, baseOpts, {
                 onServerStart() {
-                    supertest(baseURL)
+                    supertest(baseURLHTTP)
                         .get(`/error_syntax_data`)
                         .expect(404)
                         .end(finishCase(done));
@@ -468,7 +484,7 @@ describe('gulp-mocker', function () {
                 fallback: true,
                 proxies,
                 onServerStart() {
-                    supertest(baseURL)
+                    supertest(baseURLHTTP)
                         .get(`/another/path/to/data`)
                         .expect(200, proxyDataJSON)
                         .end(finishCase(done));
@@ -490,7 +506,7 @@ describe('gulp-mocker', function () {
                 }],
                 proxies,
                 onServerStart() {
-                    supertest(baseURL)
+                    supertest(baseURLHTTP)
                         .get(`/another/dynamic_data_403`)
                         .expect(404)
                         .end(finishCase(done));
@@ -529,7 +545,7 @@ describe('gulp-mocker', function () {
                     }
                 ],
                 onServerStart() {
-                    supertest(baseURL)
+                    supertest(baseURLHTTP)
                         .get(`/another/another/path/to/data`)
                         .expect(200, proxyDataJSON)
                         .end(finishCase(done));
@@ -548,7 +564,7 @@ describe('gulp-mocker', function () {
                     },
                 ],
                 onServerStart() {
-                    supertest(baseURL)
+                    supertest(baseURLHTTP)
                         .get(`/rewrite/test`)
                         .expect(200, staticDataNoConfigJSON)
                         .end(finishCase(done));
@@ -572,7 +588,7 @@ describe('gulp-mocker', function () {
                     },
                 ],
                 onServerStart() {
-                    supertest(baseURL)
+                    supertest(baseURLHTTP)
                         .get(`/rewrite/test`)
                         .expect(200, staticDataNoConfigJSON)
                         .end(finishCase(done));
@@ -589,7 +605,7 @@ describe('gulp-mocker', function () {
 
             const stream = mod.startGulpServer(Object.assign({}, baseOpts, {
                 onServerStart() {
-                    supertest(baseURL)
+                    supertest(baseURLHTTP)
                         .get(`/static_data`)
                         .expect(200, staticDataNoConfigJSON)
                         .end(function (err) {

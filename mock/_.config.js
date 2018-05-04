@@ -22,40 +22,11 @@ module.exports = {
      * @param {Object}
      *      ctx {Object}: context of koa
      *      resResult {Object}: mock response content
-     *      helpers: {
-     *          // `mime` from npm: https://www.npmjs.com/package/mime
-     *          mime,
-     *
-     *          // `mockjs` from npm: https://www.npmjs.com/package/mockjs
-     *          Mock,
-     *
-     *          // Generate a stream of image
-     *          // @param opts: {
-     *          //          // Size of image by pixel. Format: `${width}x${height}`
-     *          //          size: string,
-     *          //          // Background color of image
-     *          //          background: string,
-     *          //          // Foreground color of text
-     *          //          foreground: string,
-     *          //          // Format of image. Available values: png, jpg, gif
-     *          //          format: string,
-     *          //          // Foreground text content
-     *          //          text: string,
-     *          //      }
-     *          // @returns {Promise.<stream>} The stream of image
-     *          genImageStream: function,
-     *
-     *          // Generate a image response
-     *          // @param opts {Object}: The same as genImageStream
-     *          // @returns {Promise.<Object>} The response for dynamic response
-     *          genImageResponse: function,
-     *
-     *          // Merge query, post body, parameters from request
-     *          // @param ctx: `ctx` of koa
-     *          // @returns {Object}
-     *          mergeParams: function,
-     *      }
-     * @returns {Object} Processed response
+     *      helpers: {Object}: See "Helpers"
+     * @returns {Object|Promise<Object>}: Dynamic wrapper processed response. The Object should have the following structure
+     *      body {*}: The value will be set as the koa's body of ctx
+     *      contentType? {String}: Optional. The value will be used as content type if it's set.
+     *      status? {Number}: Optional. Response status code.
      */
     // wrapper: function({ ctx, resResult }) {
     //     // Do whatever you want
