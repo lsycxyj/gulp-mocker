@@ -15,4 +15,6 @@ module.exports = {
 
     MOCK_TYPE_NORMAL,
     MOCK_TYPE_MOCKJS,
+
+    GP_META_KEY_FILE_LEVEL_HEADERS,
 };
