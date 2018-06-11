@@ -18,6 +18,8 @@ const {
 
     MOCK_TYPE_NORMAL,
     MOCK_TYPE_MOCKJS,
+
+    GP_META_KEY_FILE_LEVEL_HEADERS,
 } = require('./const');
 const helpers = require('./helpers');
 
@@ -89,6 +91,21 @@ function mockMiddleware(opts, { watchers }) {
         const rootPath = getMockRootAbsPath();
         const filePath = path.normalize(path.join(rootPath, accessURLPath));
         return filePath;
+    }
+
+    function gulpMockerMeta(ctx, key, value) {
+        let gpMeta = ctx.$gpMeta;
+        if (!gpMeta) {
+            gpMeta = ctx.$gpMeta = {};
+        }
+
+        const args = arguments;
+
+        if (args.length === 3) {
+            gpMeta[key] = value;
+        } else if (args.length === 2) {
+            return gpMeta[key];
+        }
     }
 
     function collectConfig() {
@@ -237,7 +254,7 @@ function mockMiddleware(opts, { watchers }) {
                     }
 
                     if (retWrapper) {
-                        const { body: retBody, contentType: retContentType, status, headers } = retWrapper;
+                        const { body: retBody, contentType: retContentType, status } = retWrapper;
                         if (retBody) {
                             ret = retBody;
 
@@ -254,10 +271,6 @@ function mockMiddleware(opts, { watchers }) {
                             if (Number.isInteger(status)) {
                                 statusCode = status;
                             }
-                        }
-
-                        if (headers) {
-                            Object.assign(mergedHeaders, headers);
                         }
                     }
                 } else if (isObject(wrapper)) {
@@ -285,6 +298,10 @@ function mockMiddleware(opts, { watchers }) {
             }
         }
 
+        const fileLevelHeaders = gulpMockerMeta(ctx, GP_META_KEY_FILE_LEVEL_HEADERS);
+        if (fileLevelHeaders) {
+            Object.assign(mergedHeaders, fileLevelHeaders);
+        }
         ctx.set(mergedHeaders);
 
         return ret;
@@ -377,7 +394,7 @@ function mockMiddleware(opts, { watchers }) {
                              *      status? {Number}: Optional. Response status code.
                              */
                             if (ret) {
-                                const { body: retBody, contentType: retContentType, passThroughProxy, status } = ret;
+                                const { body: retBody, contentType: retContentType, passThroughProxy, status, headers } = ret;
 
                                 if (passThroughProxy !== true) {
                                     if (retBody) {
@@ -397,6 +414,10 @@ function mockMiddleware(opts, { watchers }) {
                                             statusCode = status;
                                         }
                                     }
+                                }
+
+                                if (headers) {
+                                    gulpMockerMeta(ctx, GP_META_KEY_FILE_LEVEL_HEADERS, headers);
                                 }
                             }
                         } else if (isObject(ret)) {

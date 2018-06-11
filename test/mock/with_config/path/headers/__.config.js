@@ -1,5 +1,5 @@
 module.exports = {
     headers: {
-        'X-Response-Gulp-Mocker': '2',
+        'X-Response-Gulp-Mocker': '1',
     },
 };

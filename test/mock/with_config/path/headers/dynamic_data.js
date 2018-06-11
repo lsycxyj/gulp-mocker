@@ -3,7 +3,7 @@ module.exports = function () {
     return {
         body: data,
         headers: {
-            'X-Response-Gulp-Mocker': '1',
+            'X-Response-Gulp-Mocker': '2',
         }
     };
 };
