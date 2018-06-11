@@ -1,3 +1,4 @@
+// Note: All the options will be merged shallowly
 module.exports = {
     /**
      * Wrapper
@@ -69,4 +70,11 @@ module.exports = {
      * Any request will pass through the proxy directly. Only available when the fallback is proxy and the proxy is available.
      */
     passThroughProxy: false,
+
+    /**
+     * Additional http headers for responses.
+     * eg. {'Etag': '1234'}
+     * Default: Empty object
+     */
+    headers: {},
 };

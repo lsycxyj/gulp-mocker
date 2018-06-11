@@ -1,7 +1,7 @@
 {
   "name": "gulp-mocker",
-  "version": "0.8.0",
-  "description": "Gulp Mocker. A mock server can be used with gulp and more.",
+  "version": "0.9.0",
+  "description": "Gulp Mocker. A mock server can be used with gulp, or run it in command line, or run it programmatically, and more.",
   "main": "src/index.js",
   "scripts": {
     "dev": "run.js",
@@ -21,7 +21,8 @@
     "gulp",
     "mock",
     "server",
-    "mock-server"
+    "mock-server",
+    "mocking"
   ],
   "author": "Light Leung <lsycxyj@gmail.com>",
   "license": "LGPLv3",

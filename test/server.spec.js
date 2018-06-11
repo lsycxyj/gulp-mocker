@@ -1,5 +1,6 @@
 const path = require('path');
 const fs = require('fs');
+const glob = require('glob')
 const supertest = require('supertest');
 const chai = require('chai');
 const chaiSpies = require('chai-spies');
@@ -28,7 +29,20 @@ function finishCase(done, beforeDone) {
     };
 }
 
-describe('gulp-mocker', function () {
+describe('gulp-mocker source files tests', function () {
+    it('bin files should not have CRLF linebreak', function () {
+        const rootPath = path.join(__dirname, '..');
+        const filenames = glob.sync('bin/**/*.js', {
+            root: rootPath,
+        });
+        for (const filename of filenames) {
+            const content = fs.readFileSync(path.join(rootPath, filename), 'utf-8');
+            expect(content.indexOf('\r\n')).to.be.equal(-1);
+        }
+    });
+});
+
+describe('gulp-mocker api tests', function () {
     let anotherServer = null;
     let server = null;
     let stream = null;
@@ -101,6 +115,34 @@ describe('gulp-mocker', function () {
                             msg: 'success',
                             data: staticDataWithConfigJSON,
                         })
+                        .end(finishCase(done));
+                },
+            }));
+
+            server = ret.webServer;
+        });
+
+        it(`mock /path/headers/data => static_data.json`, function (done) {
+            const ret = mod.startServer(Object.assign({}, baseOpts, {
+                onServerStart() {
+                    supertest(baseURL)
+                        .get(`/path/headers/data`)
+                        .expect(200, staticDataWithConfigJSON)
+                        .expect('X-Response-Gulp-Mocker', '1')
+                        .end(finishCase(done));
+                },
+            }));
+
+            server = ret.webServer;
+        });
+
+        it(`mock /path/headers/dynamic_data => static_data.json`, function (done) {
+            const ret = mod.startServer(Object.assign({}, baseOpts, {
+                onServerStart() {
+                    supertest(baseURL)
+                        .get(`/path/headers/dynamic_data`)
+                        .expect(200, staticDataWithConfigJSON)
+                        .expect('X-Response-Gulp-Mocker', '2')
                         .end(finishCase(done));
                 },
             }));
