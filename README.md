@@ -7,7 +7,7 @@
 ![Build Status](https://travis-ci.org/lsycxyj/gulp-mocker.svg?branch=master)
 
 ## License
-LGPL-V3  
+LGPL-V3
 [![License: LGPL v3](https://img.shields.io/badge/License-LGPL%20v3-blue.svg)](http://www.gnu.org/licenses/lgpl-3.0)
 
 ## Features
@@ -23,7 +23,7 @@ LGPL-V3
 
 > You can write any kind of response in the js response file.
 
-#### Fallback to proxies
+#### Fallback to Proxies
 ```javascript
 // option
 {
@@ -34,13 +34,28 @@ LGPL-V3
 }
 ```
 
-#### HTTPS support
+#### HTTPS Support
 ```javascript
 // option
 {
     useHTTPS: true,
     httpsOptions: {
         // HTTPS Option
+    }
+}
+```
+
+#### Mock File Relocation
+```javascript
+// option
+{
+    mockPathRewrite({ctx, defaultPath) {
+        let ret = defaultPath;
+        if (defaultPath === '/index.php') {
+            const q = ctx.query;
+            ret = `/${q.class}/${q.method}`;
+        }
+        return ret;
     }
 }
 ```
@@ -63,7 +78,7 @@ $ gulp-mock --config mock.config.js
 ```
 `gulp-mock -h` for more information
 
-#### Run it programmatically 
+#### Run it programmatically
 ```javascript
 const mod = require('gulp-mocker/src/server');
 const { webServer, app } = mod.startServer({
@@ -144,6 +159,18 @@ const DEFAULT_OPTS = {
     mockExtOrder: ['', '.json', '.js'],
     // {String}: Mock responses files' root path
     mockPath: './mock',
+    /*
+     *  {Function}: Rewrite the request path to the specified one. By default it won't rewrite.
+     *  Note that this option won't affect the url of fallback request
+     *  The function has following signature:
+     *      function: String ({
+     *         // `ctx` of koa.
+     *         ctx: Object,
+     *         // The request path of default behaviour
+     *         defaultPath: String,
+     *      })
+     */
+    mockPathRewrite: null,
     // {Function}: Listener function when the web server starts
     onServerStart: null,
     // {Number}: Port of server
@@ -167,6 +194,7 @@ const DEFAULT_OPTS = {
     /*
      *  {Array<{
      *      // Matching rule whether to rewrite the request, which can be parsed by path-to-regexp if it's a string
+     *      // Note that this option will affect the url of fallback request
      *      from: RegExp|String,
      *      // Where the request should be rewritten to:
      *      //      If it's a string, the request path will be replaced by it.

@@ -1,11 +1,12 @@
 {
   "name": "gulp-mocker",
-  "version": "0.9.0",
+  "version": "1.0.0",
   "description": "Gulp Mocker. A mock server can be used with gulp, or run it in command line, or run it programmatically, and more.",
   "main": "src/index.js",
   "scripts": {
     "dev": "run.js",
-    "test": "nyc --reporter=html --reporter=text mocha ./test/**/*.spec.js",
+    "test": "mocha ./test/**/*.spec.js",
+    "test-coverage": "nyc --reporter=html --reporter=text npm run test",
     "coverage": "nyc report --reporter=text-lcov | coveralls",
     "report-coverage": "nyc report --reporter=text-lcov > coverage.lcov && codecov",
     "lint": "eslint src/**/*.js bin/**/*.js"
@@ -62,6 +63,7 @@
     "event-stream": "^3.3.4",
     "gulp": "^3.9.1",
     "gulp-zip": "^4.1.0",
+    "image-size": "^0.7.2",
     "memory-fs": "^0.4.1",
     "mocha": "^5.1.1",
     "nyc": "^11.7.1",

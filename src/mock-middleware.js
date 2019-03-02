@@ -40,6 +40,7 @@ function mockMiddleware(opts, { watchers }) {
         mockConfigName,
         mockExtOrder,
         mockPath,
+        mockPathRewrite,
         fallback,
         fallbackRules,
         proxies,
@@ -87,7 +88,11 @@ function mockMiddleware(opts, { watchers }) {
         return path.resolve(mockPath);
     }
 
-    function getAccessFilePath(accessURLPath) {
+    function getAccessFilePath(ctx) {
+        let accessURLPath = ctx.path;
+        if (isFunction(mockPathRewrite)) {
+            accessURLPath = mockPathRewrite({ctx, defaultPath: accessURLPath});
+        }
         const rootPath = getMockRootAbsPath();
         const filePath = path.normalize(path.join(rootPath, accessURLPath));
         return filePath;
@@ -133,8 +138,8 @@ function mockMiddleware(opts, { watchers }) {
         }
     }
 
-    function mergeConfig(accessURLPath) {
-        const filePath = getAccessFilePath(accessURLPath);
+    function mergeConfig(ctx) {
+        const filePath = getAccessFilePath(ctx);
         const rootPath = getMockRootAbsPath();
         const folderPath = path.dirname(filePath);
         const fullKey = path.relative(rootPath, folderPath);
@@ -198,11 +203,11 @@ function mockMiddleware(opts, { watchers }) {
     }
 
     async function doFilterConfig(ctx, resResult) {
-        const { req, path: reqPath } = ctx;
+        const { req } = ctx;
         const { url: reqURL } = req;
         let ret = resResult;
 
-        const config = mergeConfig(reqPath);
+        const config = mergeConfig(ctx);
         const {
             wrapper,
             wrapperContentPlaceHolder = '{{!--WrapperContent--}}',
@@ -328,8 +333,7 @@ function mockMiddleware(opts, { watchers }) {
 
     function doFilterDelay(ctx, resResult) {
         return new Promise((resolve, reject) => {
-            const { path: reqPath } = ctx;
-            const config = mergeConfig(reqPath);
+            const config = mergeConfig(ctx);
             const { delay } = config;
             if (delay <= 0) {
                 resolve(resResult);
@@ -452,8 +456,7 @@ function mockMiddleware(opts, { watchers }) {
     async function doMockResponse(ctx) {
         doFilterRewrites(ctx);
 
-        const { path: reqPath } = ctx;
-        const accessPath = getAccessFilePath(reqPath);
+        const accessPath = getAccessFilePath(ctx);
         let result = await makeResponse(ctx, accessPath);
         result = await doFilterConfig(ctx, result);
         result = doFilterJSONP(ctx, result);

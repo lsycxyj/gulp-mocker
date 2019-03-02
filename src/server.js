@@ -74,6 +74,18 @@ const DEFAULT_OPTS = {
     mockExtOrder: ['', '.json', '.js'],
     // {String}: Mock responses files' root path
     mockPath: './mock',
+    /*
+     *  {Function}: Rewrite the request path to the specified one. By default it won't rewrite.
+     *  Note that this option won't affect the url of fallback request
+     *  The function has following signature:
+     *      function: String ({
+     *         // `ctx` of koa.
+     *         ctx: Object,
+     *         // The request path of default behaviour
+     *         defaultPath: String,
+     *      })
+     */
+    mockPathRewrite: null,
     // {Function}: Listener function when the web server starts
     onServerStart: null,
     // {Number}: Port of server
@@ -97,6 +109,7 @@ const DEFAULT_OPTS = {
     /*
      *  {Array<{
      *      // Matching rule whether to rewrite the request, which can be parsed by path-to-regexp if it's a string
+     *      // Note that this option will affect the url of fallback request
      *      from: RegExp|String,
      *      // Where the request should be rewritten to:
      *      //      If it's a string, the request path will be replaced by it.

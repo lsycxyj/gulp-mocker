@@ -1,11 +1,12 @@
 const path = require('path');
 const fs = require('fs');
-const glob = require('glob')
+const glob = require('glob');
 const supertest = require('supertest');
 const chai = require('chai');
 const chaiSpies = require('chai-spies');
 const Vinyl = require('vinyl');
 const request = require('request');
+const imageSize = require('image-size');
 // const MemoryFileSystem = require('memory-fs');
 
 process.env.NODE_ENV = 'test';
@@ -340,7 +341,53 @@ describe('gulp-mocker api tests', function () {
             server = ret.webServer;
         });
 
+        it('mock /index.php?c=static_data => static_data.json and success', function (done) {
+            const spiedMockPathRewrite = spy(function ({ ctx, defaultPath }) {
+                const fileName = ctx.query.c;
+                expect(fileName).to.be.equal('static_data');
+                expect(defaultPath).to.be.equal('/index.php');
+                return `/${fileName}`;
+            });
+            const ret = mod.startServer(Object.assign({}, baseOpts, {
+                mockPathRewrite: spiedMockPathRewrite,
+                onServerStart() {
+                    supertest(baseURLHTTP)
+                        .get('/index.php?c=static_data')
+                        .expect(200, staticDataNoConfigJSON)
+                        .end(function (err) {
+                            expect(spiedMockPathRewrite).to.have.been.called();
+                            finishCase(done)(err);
+                        });
+                },
+            }));
+
+            server = ret.webServer;
+        });
+
+	    it('mock /another/path/to/data => rewrite to /path/not/exists and failed => try proxy /another/path/to/data', function (done) {
+            const spiedMockPathRewrite = spy(function () {
+                return '/path/not/exists';
+            });
+            const ret = mod.startServer(Object.assign({}, baseOpts, {
+                mockPathRewrite: spiedMockPathRewrite,
+                fallback: true,
+                proxies,
+                onServerStart() {
+                    supertest(baseURLHTTP)
+                        .get('/another/path/to/data')
+                        .expect(200, proxyDataJSON)
+                        .end(function (err) {
+                            expect(spiedMockPathRewrite).to.have.been.called();
+                            finishCase(done)(err);
+                        });
+                },
+            }));
+
+            server = ret.webServer;
+        });
+
         it(`mock POST /static_data => static_data.json`, function (done) {
+            this.timeout(5000);
             const ret = mod.startServer(Object.assign({}, baseOpts, {
                 onServerStart() {
                     const b = Buffer.alloc(10 * 1024 * 1024, 'a');
@@ -361,7 +408,7 @@ describe('gulp-mocker api tests', function () {
                     }, function (err, res, body) {
                         // console.log(err)
                         // console.log(res)
-                        done()
+                        done();
                     });
                     // s.end();
                 },
@@ -461,8 +508,12 @@ describe('gulp-mocker api tests', function () {
                     supertest(baseURLHTTP)
                         .get(`/image.png?size=200x200&format=png`)
                         .expect(200)
-                        // TODO size validation etc.
-                        .end(finishCase(done));
+                        .end(function(err, res) {
+                            const dimension = imageSize(res.body);
+                            expect(dimension.width).to.be.equal(200);
+                            expect(dimension.height).to.be.equal(200);
+                            finishCase(done)(err);
+                        });
                 },
             }));
 
@@ -663,7 +714,7 @@ describe('gulp-mocker api tests', function () {
                                 stream.emit('kill');
 
                                 done();
-                            })
+                            });
                         });
                 },
             }));
