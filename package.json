@@ -1,6 +1,6 @@
 {
   "name": "gulp-mocker",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Gulp Mocker. A mock server can be used with gulp, or run it in command line, or run it programmatically, and more.",
   "main": "src/index.js",
   "scripts": {
