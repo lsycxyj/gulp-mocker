@@ -5,6 +5,7 @@
 ### Pull requests are welcome :)
 
 ![Build Status](https://travis-ci.org/lsycxyj/gulp-mocker.svg?branch=master)
+[![Coverage](https://img.shields.io/codecov/c/github/lsycxyj/gulp-mocker/master.svg)](https://codecov.io/github/lsycxyj/gulp-mocker?branch=master)
 
 ## License
 LGPL-V3
