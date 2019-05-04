@@ -358,3 +358,56 @@ module.exports = {
 - More test cases.
 - Generate image response by myself instead of depending other online services.
 - More other features.
+
+## Recipes and Case Studies
+### Multiple hosts with fallback and *WebpackDevServer* by only one mocking server
+1. Set the proxy option of *WebpackDevServer* and forward all the requests to the mocking server. Let's say the dev server listens to port 8080 and the mocking server listens port 10086 of localhost:
+```javascript
+const webpackConfig = {
+    devServer: {
+        disableHostCheck: true,
+        port: 8080,
+        proxy: {
+            '/api': {
+                target: 'http://localhost:10086',
+            },
+        },
+    },
+};
+```
+1. Change your requests to multiple host aliases of localhost. Let's say you have two hosts `a.com` and `b.com` which provide API services.
+    1. Edit host file
+    ```
+    127.0.0.1 localhost.a.com
+    127.0.0.1 localhost.b.com
+    ```
+    1. Change your API hosts from `x.com/api` to `localhost.x.com:10086/api`
+1. And the options for *gulp-mocker* should be like this:
+```javascript
+gulpMocker({
+    mockPath: './mock',
+    port: 10086,
+    fallback: true,
+    proxies: [
+        {
+            source: '/api/(.*)',
+            options: {
+                // Default target
+                target: 'a.com',
+                changeOrigin: true,
+                router: {
+                    // Override default target by different coming hosts
+                    'localhost.a.com:8080': 'http://a.com',
+                    'localhost.b.com:8080': 'http://b.com',
+                },
+            },
+        },
+    ],
+    /*
+    mockPathRewrite({ ctx, defaultPath }) {
+        // Change the local mocking file path if it's needed.
+        return 'newPath';
+    }
+    */
+});
+```
